@@ -12,13 +12,13 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
 def create_board():
-    return [[0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
+    return [[(0, 0, 0) for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
 
 def draw_board(board):
     for y, row in enumerate(board):
         for x, cell in enumerate(row):
-            if cell:
-                pygame.draw.rect(screen, cell.color, (x * SQUARE_SIZE, y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
+            if cell != (0, 0, 0):  # Only draw non-empty cells
+                pygame.draw.rect(screen, cell, (x * SQUARE_SIZE, y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
 
 def draw_tetromino(tetro):
     for y, row in enumerate(tetro.shape):
@@ -26,42 +26,34 @@ def draw_tetromino(tetro):
             if cell:
                 pygame.draw.rect(screen, tetro.color, (tetro.x * SQUARE_SIZE + x * SQUARE_SIZE, tetro.y * SQUARE_SIZE + y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
 
-def move_tetromino(tetro, dx=0, dy=0):
+def move_tetromino(tetro, board, dx=0, dy=0):
     new_x = tetro.x + dx
     new_y = tetro.y + dy
 
-    // TODO: account for the width and height of pieces before iteration
-    // during collision detection. Check only filled squares for collisions.
-    // start from the bottom, but check x-axis and y-axis boundaries
-    if not (0 <= new_x < BOARD_WIDTH) or not (0 <= new_y < BOARD_HEIGHT):
+    # Check if the new position is within bounds
+    if not (0 <= new_x < BOARD_WIDTH - len(tetro.shape[0]) + 1) or not (0 <= new_y < BOARD_HEIGHT - len(tetro.shape) + 1):
         return False
 
+    # Check only filled squares for collisions
     for y, row in enumerate(tetro.shape):
         for x, cell in enumerate(row):
-	    // BUG: crashes here with stack trace -> line 74, if not move_tetromino(current_tetro, dy=1):
-            //                                                       ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-            // IndexError: list index out of range
-            //  if cell and board[new_y + y][new_x + x]:
-            //              ~~~~~^^^^^^^^^^^
-            if cell and board[new_y + y][new_x + x]:
+            if cell and (new_y + y >= BOARD_HEIGHT or new_x + x < 0 or new_x + x >= BOARD_WIDTH or board[new_y + y][new_x + x] != (0, 0, 0)):
                 return False
 
     tetro.x = new_x
     tetro.y = new_y
     return True
 
-def check_lines():
-    global board
-    lines_to_remove = [y for y, row in enumerate(board) if all(row)]
+def check_lines(board):
+    lines_to_remove = [y for y, row in enumerate(board) if all(cell != (0, 0, 0) for cell in row)]
 
     for line in lines_to_remove:
         del board[line]
 
     for _ in range(len(lines_to_remove)):
-        board.insert(0, [0 for _ in range(BOARD_WIDTH)])
+        board.insert(0, [(0, 0, 0) for _ in range(BOARD_WIDTH)])
 
 def main():
-    global board
     board = create_board()
     current_tetro = generate_tetromino()
 
@@ -74,18 +66,18 @@ def main():
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            move_tetromino(current_tetro, -1)
+            move_tetromino(current_tetro, board, -1)
         elif keys[pygame.K_RIGHT]:
-            move_tetromino(current_tetro, 1)
+            move_tetromino(current_tetro, board, 1)
 
         if falling:
-            if not move_tetromino(current_tetro, dy=1):
+            if not move_tetromino(current_tetro, board, dy=1):
                 for y, row in enumerate(current_tetro.shape):
                     for x, cell in enumerate(row):
                         if cell:
                             board[current_tetro.y + y][current_tetro.x + x] = current_tetro.color
 
-                check_lines()
+                check_lines(board)
                 current_tetro = generate_tetromino()
                 falling = False
 
