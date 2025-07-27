@@ -11,20 +11,26 @@ pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
+
 def create_board():
     return [[(0, 0, 0) for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
+
 
 def draw_board(board):
     for y, row in enumerate(board):
         for x, cell in enumerate(row):
             if cell != (0, 0, 0):  # Only draw non-empty cells
-                pygame.draw.rect(screen, cell, (x * SQUARE_SIZE, y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
+                pygame.draw.rect(screen, cell, (x * SQUARE_SIZE,
+                                 y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
+
 
 def draw_tetromino(tetro):
     for y, row in enumerate(tetro.shape):
         for x, cell in enumerate(row):
             if cell:
-                pygame.draw.rect(screen, tetro.color, (tetro.x * SQUARE_SIZE + x * SQUARE_SIZE, tetro.y * SQUARE_SIZE + y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
+                pygame.draw.rect(screen, tetro.color, (tetro.x * SQUARE_SIZE + x * SQUARE_SIZE,
+                                 tetro.y * SQUARE_SIZE + y * SQUARE_SIZE, SQUARE_SIZE - 1, SQUARE_SIZE - 1))
+
 
 def move_tetromino(tetro, board, dx=0, dy=0):
     new_x = tetro.x + dx
@@ -44,14 +50,17 @@ def move_tetromino(tetro, board, dx=0, dy=0):
     tetro.y = new_y
     return True
 
+
 def check_lines(board):
-    lines_to_remove = [y for y, row in enumerate(board) if all(cell != (0, 0, 0) for cell in row)]
+    lines_to_remove = [y for y, row in enumerate(
+        board) if all(cell != (0, 0, 0) for cell in row)]
 
     for line in lines_to_remove:
         del board[line]
 
     for _ in range(len(lines_to_remove)):
         board.insert(0, [(0, 0, 0) for _ in range(BOARD_WIDTH)])
+
 
 def main():
     board = create_board()
@@ -75,7 +84,8 @@ def main():
                 for y, row in enumerate(current_tetro.shape):
                     for x, cell in enumerate(row):
                         if cell:
-                            board[current_tetro.y + y][current_tetro.x + x] = current_tetro.color
+                            board[current_tetro.y + y][current_tetro.x +
+                                                       x] = current_tetro.color
 
                 check_lines(board)
                 current_tetro = generate_tetromino()
@@ -91,6 +101,7 @@ def main():
             falling = True
 
         clock.tick(FPS)
+
 
 if __name__ == "__main__":
     main()

@@ -1,11 +1,13 @@
 import random
 
+
 class Tetromino:
     def __init__(self, shape, color):
         self.shape = shape
         self.color = color
         self.x = 5
         self.y = 0
+
 
 SHAPES = {
     'I': [[1, 1, 1, 1]],
@@ -18,14 +20,15 @@ SHAPES = {
 }
 
 COLORS = {
-    'I': (231, 117, 60),
+    'S': (15, 127, 0),
+    'J': (150, 186, 220),
+    'Z': (60, 114, 201),
+    'L': (127, 63, 255),
     'O': (170, 17, 17),
-    'T': (238, 231, 139),
-    'S': (5, 161, 0),
-    'Z': (74, 208, 187),
-    'J': (30, 51, 138),
-    'L': (183, 47, 204)
+    'I': (255, 127, 63),
+    'T': (255, 255, 127)
 }
+
 
 def generate_tetromino():
     shape = random.choice(list(SHAPES.keys()))
