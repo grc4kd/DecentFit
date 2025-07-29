@@ -13,10 +13,12 @@ clock = pygame.time.Clock()
 
 
 def create_board():
+    """Create an empty board."""
     return [[(0, 0, 0) for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
 
 
 def draw_board(board):
+    """Draw the board on the screen."""
     for y, row in enumerate(board):
         for x, cell in enumerate(row):
             if cell != (0, 0, 0):  # Only draw non-empty cells
@@ -25,6 +27,7 @@ def draw_board(board):
 
 
 def draw_tetromino(tetro):
+    """Draw the current tetromino on the screen."""
     for y, row in enumerate(tetro.shape):
         for x, cell in enumerate(row):
             if cell:
@@ -33,6 +36,7 @@ def draw_tetromino(tetro):
 
 
 def move_tetromino(tetro, board, dx=0, dy=0):
+    """Move the tetromino and check for collisions."""
     new_x = tetro.x + dx
     new_y = tetro.y + dy
 
@@ -52,6 +56,7 @@ def move_tetromino(tetro, board, dx=0, dy=0):
 
 
 def check_lines(board):
+    """Check for and remove completed lines."""
     lines_to_remove = [y for y, row in enumerate(
         board) if all(cell != (0, 0, 0) for cell in row)]
 
@@ -63,6 +68,7 @@ def check_lines(board):
 
 
 def main():
+    """Main game loop."""
     board = create_board()
     current_tetro = generate_tetromino()
 

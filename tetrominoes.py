@@ -2,7 +2,15 @@ import random
 
 
 class Tetromino:
+    """Represents a tetromino piece."""
+
     def __init__(self, shape, color):
+        """Initializes a new Tetromino instance.
+
+        Args:
+            shape (list of lists): The shape of the tetromino.
+            color (tuple): The color of the tetromino.
+        """
         self.shape = shape
         self.color = color
         self.x = 5
@@ -31,5 +39,6 @@ COLORS = {
 
 
 def generate_tetromino():
+    """Generate a random tetromino."""
     shape = random.choice(list(SHAPES.keys()))
     return Tetromino(SHAPES[shape], COLORS[shape])
