@@ -1,11 +1,11 @@
 import pygame
 import sys
-from tetrominoes import generate_tetromino
+from tetrominoes import generate_tetromino, Tetromino
 
 WIDTH, HEIGHT = 300, 600
 BOARD_WIDTH, BOARD_HEIGHT = 10, 20
 SQUARE_SIZE = WIDTH // BOARD_WIDTH
-FPS = 30
+FPS = 8
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -71,42 +71,89 @@ def main():
     """Main game loop."""
     board = create_board()
     current_tetro = generate_tetromino()
-
-    falling = True
+    
+    game_over = False
+    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            move_tetromino(current_tetro, board, -1)
-        elif keys[pygame.K_RIGHT]:
-            move_tetromino(current_tetro, board, 1)
-
-        if falling:
-            if not move_tetromino(current_tetro, board, dy=1):
+                
+        if not game_over:
+            keys = pygame.key.get_pressed()
+            
+            if keys[pygame.K_LEFT]:
+                move_tetromino(current_tetro, board, -1, 0)
+            if keys[pygame.K_RIGHT]:
+                move_tetromino(current_tetro, board, 1, 0)
+            if keys[pygame.K_DOWN]:
+                move_tetromino(current_tetro, board, 0, 1)
+            if keys[pygame.K_RCTRL]:
+                # Rotate the tetromino when right Ctrl is pressed
+                if not current_tetro.rotate(board):
+                    pass
+                    
+            # Check if the piece has landed
+            if not move_tetromino(current_tetro, board, 0, 1):
+                # Place the piece on the board
                 for y, row in enumerate(current_tetro.shape):
                     for x, cell in enumerate(row):
                         if cell:
-                            board[current_tetro.y + y][current_tetro.x +
-                                                       x] = current_tetro.color
-
-                check_lines(board)
+                            board[current_tetro.y + y][current_tetro.x + x] = current_tetro.color
+                
+                # Generate a new piece
                 current_tetro = generate_tetromino()
-                falling = False
-
+                
+                # Check for game over (new piece can't be placed)
+                if not move_tetromino(current_tetro, board, 0, 0):
+                    # Game over
+                    game_over = True
+                    # Don't break the loop - we want to show the game over screen
+                    # But don't process any more input
+                    # We'll handle game over in the event loop below
+                
+            # Check for completed lines
+            check_lines(board)
+        
+        # Clear the screen
         screen.fill((0, 0, 0))
+        
+        # Draw the board and current piece
         draw_board(board)
-        draw_tetromino(current_tetro)
+        if not game_over:
+            draw_tetromino(current_tetro)
+        
+        # Show game over message if game is over
+        if game_over:
+            font = pygame.font.SysFont(None, 50)
+            text = font.render("GAME OVER", True, (255, 0, 0))
+            text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            screen.blit(text, text_rect)
+            
+            # Show restart instructions
+            font_small = pygame.font.SysFont(None, 30)
+            restart_text = font_small.render("Press R to restart", True, (255, 255, 255))
+            restart_rect = restart_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+            screen.blit(restart_text, restart_rect)
+        
+        # Update the display
         pygame.display.flip()
-
-        if not falling:
-            pygame.time.wait(300)
-            falling = True
-
+        
+        # Control game speed
         clock.tick(FPS)
+        
+        # Handle game over input
+        if game_over:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    # Restart the game
+                    board = create_board()
+                    current_tetro = generate_tetromino()
+                    game_over = False
 
 
 if __name__ == "__main__":
