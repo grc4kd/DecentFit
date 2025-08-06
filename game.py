@@ -51,31 +51,39 @@ def draw_tetromino(tetro):
                 )
 
 
+def is_inside_bounds(tetro, x, y):
+    """Check if a piece is within bounds of the game board at position [x, y]"""
+    return (0 <= x < BOARD_WIDTH - len(tetro.shape[0]) + 1) and (
+        0 <= y < BOARD_HEIGHT - len(tetro.shape) + 1
+    )
+
+
+def has_board_collision(tetro, board, x, y):
+    """Check if filled squares on the game board collide with a piece at position [x, y]"""
+    for j, row in enumerate(tetro.shape):
+        for i, cell in enumerate(row):
+            if cell and (
+                y + j >= BOARD_HEIGHT
+                or x + i < 0
+                or x + i >= BOARD_WIDTH
+                or board[y + j][x + i] != (0, 0, 0)
+            ):
+                return True
+
+    return False
+
+
 def move_tetromino(tetro, board, dx=0, dy=0):
     """Move the tetromino and check for collisions."""
     new_x = tetro.x + dx
     new_y = tetro.y + dy
 
-    # Check if the new position is within bounds
-    if not (0 <= new_x < BOARD_WIDTH - len(tetro.shape[0]) + 1) or not (
-        0 <= new_y < BOARD_HEIGHT - len(tetro.shape) + 1
-    ):
-        return False
+    if is_inside_bounds(tetro, new_x, new_y) and not has_board_collision(tetro, board, new_x, new_y):
+        tetro.x = new_x
+        tetro.y = new_y
+        return True
 
-    # Check only filled squares for collisions
-    for y, row in enumerate(tetro.shape):
-        for x, cell in enumerate(row):
-            if cell and (
-                new_y + y >= BOARD_HEIGHT
-                or new_x + x < 0
-                or new_x + x >= BOARD_WIDTH
-                or board[new_y + y][new_x + x] != (0, 0, 0)
-            ):
-                return False
-
-    tetro.x = new_x
-    tetro.y = new_y
-    return True
+    return False
 
 
 def check_lines(board):
