@@ -1,52 +1,127 @@
 import pygame
 import sys
-from tetrominoes import generate_tetromino
+import random
 
+# Constants
 WIDTH, HEIGHT = 300, 600
-BOARD_WIDTH, BOARD_HEIGHT = 10, 20
-SQUARE_SIZE = WIDTH // BOARD_WIDTH
-FPS = 8
+BLOCK_SIZE = 30
+GRID_WIDTH = WIDTH // BLOCK_SIZE
+GRID_HEIGHT = HEIGHT // BLOCK_SIZE
+
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+
+DARK_BLUE = (0, 71, 132)
+LIGHT_BLUE = (162, 222, 251)
+GREY_GREEN = (108, 119, 94)
+MAGENTA = (185, 119, 232)
+RED = (251, 20, 3)
+ORANGE = (251, 127, 24)
+YELLOW = (251, 251, 59)
+
+# Tetromino shapes and colors in a dictionary keyed by letter
+PIECES = ["S", "J", "Z", "L", "O", "I", "T"]
+
+COLORS = {
+    "S": DARK_BLUE,
+    "J": LIGHT_BLUE,
+    "Z": GREY_GREEN,
+    "L": MAGENTA,
+    "O": RED,
+    "I": ORANGE,
+    "T": YELLOW,
+}
+
+SHAPES = {
+    "I": [[1, 1, 1, 1]],
+    "O": [[1, 1], [1, 1]],
+    "T": [[1, 1, 1], [0, 1, 0]],
+    "J": [[1, 1, 1], [1, 0, 0]],
+    "L": [[1, 1, 1], [0, 0, 1]],
+    "S": [[0, 1, 1], [1, 1, 0]],
+    "Z": [[1, 1, 0], [0, 1, 1]],
+}
+
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
+pygame.display.set_caption("Decent Fit")
+
+
+class Tetromino:
+    def __init__(self, shape, color):
+        self.shape = shape
+        self.color = color
+        self.x = GRID_WIDTH // 2 - len(shape[0]) // 2
+        self.y = 0
+
+    def rotate(self, board):
+        # Create a new rotated shape
+        rotated = []
+        for i in range(len(self.shape[0])):
+            row = []
+            for j in range(len(self.shape) - 1, -1, -1):
+                row.append(self.shape[j][i])
+            rotated.append(row)
+
+        # Check if rotation is valid
+        if self.is_valid_position(rotated, self.x, self.y, board):
+            self.shape = rotated
+
+    def is_valid_position(self, shape, x, y, board):
+        for i, row in enumerate(shape):
+            for j, cell in enumerate(row):
+                if cell:
+                    if (
+                        x + j < 0
+                        or x + j >= GRID_WIDTH
+                        or y + i >= GRID_HEIGHT
+                        or (y + i >= 0 and board[y + i][x + j])
+                    ):
+                        return False
+        return True
 
 
 def create_board():
-    """Create an empty board."""
-    return [[(0, 0, 0) for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
+    return [[False for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+
+
+def generate_tetromino():
+    piece = random.choice(PIECES)
+    return Tetromino(SHAPES[piece], COLORS[piece])
 
 
 def draw_board(board):
-    """Draw the board on the screen."""
     for y, row in enumerate(board):
-        for x, cell in enumerate(row):
-            if cell != (0, 0, 0):  # Only draw non-empty cells
-                pygame.draw.rect(
-                    screen,
-                    cell,
-                    (
-                        x * SQUARE_SIZE,
-                        y * SQUARE_SIZE,
-                        SQUARE_SIZE - 1,
-                        SQUARE_SIZE - 1,
-                    ),
-                )
-
-
-def draw_tetromino(tetro):
-    """Draw the current tetromino on the screen."""
-    for y, row in enumerate(tetro.shape):
         for x, cell in enumerate(row):
             if cell:
                 pygame.draw.rect(
                     screen,
-                    tetro.color,
+                    cell,
+                    (x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE),
+                )
+                pygame.draw.rect(
+                    screen,
+                    WHITE,
+                    (x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE),
+                    1,
+                )
+
+
+def draw_tetromino(tetromino):
+    for y, row in enumerate(tetromino.shape):
+        for x, cell in enumerate(row):
+            if cell:
+                pygame.draw.rect(
+                    screen,
+                    tetromino.color,
                     (
-                        tetro.x * SQUARE_SIZE + x * SQUARE_SIZE,
-                        tetro.y * SQUARE_SIZE + y * SQUARE_SIZE,
-                        SQUARE_SIZE - 1,
-                        SQUARE_SIZE - 1,
+                        (tetromino.x + x) * BLOCK_SIZE,
+                        (tetromino.y + y) * BLOCK_SIZE,
+                        BLOCK_SIZE,
+                        BLOCK_SIZE,
                     ),
                 )
 
@@ -87,85 +162,93 @@ def move_tetromino(tetro, board, dx=0, dy=0):
 
 
 def check_lines(board):
-    """Check for and remove completed lines."""
-    lines_to_remove = [
-        y for y, row in enumerate(board) if all(cell != (0, 0, 0) for cell in row)
-    ]
+    lines_to_remove = []
+    for y in range(GRID_HEIGHT):
+        if all(board[y]):
+            lines_to_remove.append(y)
 
-    for line in lines_to_remove:
-        del board[line]
-
-    for _ in range(len(lines_to_remove)):
-        board.insert(0, [(0, 0, 0) for _ in range(BOARD_WIDTH)])
+    # Remove completed lines
+    for y in lines_to_remove:
+        del board[y]
+        board.insert(0, [False for _ in range(GRID_WIDTH)])
 
 
 def main():
-    """Main game loop."""
+    """Main game loop with independent FPS and game speed."""
+    # Game state
     board = create_board()
     current_tetro = generate_tetromino()
-
     game_over = False
+    last_drop_time = pygame.time.get_ticks()
+    drop_interval = 1000  # ms
 
     while True:
+        # Handle events (input is checked every frame)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
 
+            if not game_over:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        move_tetromino(current_tetro, board, -1, 0)
+                    elif event.key == pygame.K_RIGHT:
+                        move_tetromino(current_tetro, board, 1, 0)
+                    elif event.key == pygame.K_DOWN:
+                        move_tetromino(current_tetro, board, 0, 1)
+                    elif event.key == pygame.K_RCTRL:
+                        current_tetro.rotate(board)
+                    elif event.key == pygame.K_r and game_over:
+                        # Restart game
+                        board = create_board()
+                        current_tetro = generate_tetromino()
+                        game_over = False
+
         if not game_over:
-            keys = pygame.key.get_pressed()
+            # Check for game speed-based drop
+            current_time = pygame.time.get_ticks()
+            if current_time - last_drop_time >= drop_interval:
+                if not move_tetromino(current_tetro, board, 0, 1):
+                    # Piece landed
+                    for y, row in enumerate(current_tetro.shape):
+                        for x, cell in enumerate(row):
+                            if cell:
+                                board[current_tetro.y + y][
+                                    current_tetro.x + x
+                                ] = current_tetro.color
 
-            if keys[pygame.K_LEFT]:
-                move_tetromino(current_tetro, board, -1, 0)
-            if keys[pygame.K_RIGHT]:
-                move_tetromino(current_tetro, board, 1, 0)
-            if keys[pygame.K_DOWN]:
-                move_tetromino(current_tetro, board, 0, 1)
-            if keys[pygame.K_RCTRL]:
-                # Rotate the tetromino when right Ctrl is pressed
-                if not current_tetro.rotate(board):
-                    pass
+                    # Generate new piece
+                    current_tetro = generate_tetromino()
 
-            # Check if the piece has landed
-            if not move_tetromino(current_tetro, board, 0, 1):
-                # Place the piece on the board
-                for y, row in enumerate(current_tetro.shape):
-                    for x, cell in enumerate(row):
-                        if cell:
-                            board[current_tetro.y + y][
-                                current_tetro.x + x
-                            ] = current_tetro.color
+                    # Check for game over
+                    if not move_tetromino(current_tetro, board, 0, 0):
+                        game_over = True
 
-                # Generate a new piece
-                current_tetro = generate_tetromino()
-
-                # Check for game over (new piece can't be placed)
-                if not move_tetromino(current_tetro, board, 0, 0):
-                    # Game over
-                    game_over = True
-                    # Don't break the loop - we want to show the game over screen
-                    # But don't process any more input
-                    # We'll handle game over in the event loop below
+                    # Reset drop timer
+                    last_drop_time = current_time
+                else:
+                    # Successfully moved down, update timer
+                    last_drop_time = current_time
 
             # Check for completed lines
             check_lines(board)
 
-        # Clear the screen
+        # Clear screen
         screen.fill((0, 0, 0))
 
-        # Draw the board and current piece
+        # Draw board and current piece
         draw_board(board)
         if not game_over:
             draw_tetromino(current_tetro)
 
-        # Show game over message if game is over
+        # Show game over screen
         if game_over:
             font = pygame.font.SysFont(None, 50)
             text = font.render("GAME OVER", True, (255, 0, 0))
             text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(text, text_rect)
 
-            # Show restart instructions
             font_small = pygame.font.SysFont(None, 30)
             restart_text = font_small.render(
                 "Press R to restart", True, (255, 255, 255)
@@ -173,23 +256,11 @@ def main():
             restart_rect = restart_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
             screen.blit(restart_text, restart_rect)
 
-        # Update the display
+        # Update display
         pygame.display.flip()
 
-        # Control game speed
-        clock.tick(FPS)
-
-        # Handle game over input
-        if game_over:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    # Restart the game
-                    board = create_board()
-                    current_tetro = generate_tetromino()
-                    game_over = False
+        # Cap FPS at 60 (independent of game speed)
+        clock.tick(60)
 
 
 if __name__ == "__main__":
