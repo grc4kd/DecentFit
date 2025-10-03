@@ -8,20 +8,19 @@ BOARD_HEIGHT = 20
 
 class Tetromino:
     """Represents a tetromino piece."""
-
-    def __init__(self, shape, color):
+    def __init__(self, shape: list[list[int]], color: tuple[int, int, int]):
         """Initializes a new Tetromino instance.
 
         Args:
-            shape (list of lists): The shape of the tetromino.
-            color (tuple): The color of the tetromino.
+            shape: The shape of the tetromino.
+            color: The color of the tetromino.
         """
         self.shape = shape
         self.color = color
         self.x = 5
         self.y = 0
 
-    def rotate(self, board):
+    def rotate(self, board: list[list[tuple[int, int, int]]]):
         """Rotate the tetromino 90 degrees clockwise and check for collisions."""
         # Save original shape and position
         original_shape = [row[:] for row in self.shape]
@@ -76,7 +75,7 @@ COLORS = {
 }
 
 
-def generate_tetromino():
+def generate_tetromino() -> Tetromino:
     """Generate a random tetromino."""
     shape = random.choice(list(SHAPES.keys()))
     return Tetromino(SHAPES[shape], COLORS[shape])

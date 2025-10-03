@@ -1,14 +1,17 @@
 import pygame
 import sys
-from tetrominoes import generate_tetromino
+from tetrominoes import Tetromino, generate_tetromino
 
-WIDTH, HEIGHT = 300, 600
+SCREEN_WIDTH, SCREEN_HEIGHT = 300, 600
 BOARD_WIDTH, BOARD_HEIGHT = 10, 20
-SQUARE_SIZE = WIDTH // BOARD_WIDTH
-FPS = 8
+SQUARE_SIZE = SCREEN_WIDTH // BOARD_WIDTH
+FPS = 60
+MS_PER_MOVE = 100
+
+ms_since_tick = 0
 
 pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 
 
@@ -17,7 +20,7 @@ def create_board():
     return [[(0, 0, 0) for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
 
 
-def draw_board(board):
+def draw_board(board: list[list[tuple[int, int, int]]]):
     """Draw the board on the screen."""
     for y, row in enumerate(board):
         for x, cell in enumerate(row):
@@ -34,7 +37,7 @@ def draw_board(board):
                 )
 
 
-def draw_tetromino(tetro):
+def draw_tetromino(tetro: Tetromino):
     """Draw the current tetromino on the screen."""
     for y, row in enumerate(tetro.shape):
         for x, cell in enumerate(row):
@@ -51,14 +54,14 @@ def draw_tetromino(tetro):
                 )
 
 
-def is_inside_bounds(tetro, x, y):
+def is_inside_bounds(tetro: Tetromino, x: int, y: int) -> bool:
     """Check if a piece is within bounds of the game board at position [x, y]"""
     return (0 <= x < BOARD_WIDTH - len(tetro.shape[0]) + 1) and (
         0 <= y < BOARD_HEIGHT - len(tetro.shape) + 1
     )
 
 
-def has_board_collision(tetro, board, x, y):
+def has_board_collision(tetro: Tetromino, board: list[list[tuple[int, int, int]]], x: int, y: int):
     """Check if filled squares on the game board collide with a piece at position [x, y]"""
     for j, row in enumerate(tetro.shape):
         for i, cell in enumerate(row):
@@ -73,12 +76,14 @@ def has_board_collision(tetro, board, x, y):
     return False
 
 
-def move_tetromino(tetro, board, dx=0, dy=0):
+def move_tetromino(tetro: Tetromino, board: list[list[tuple[int, int, int]]], dx: int = 0, dy: int = 0):
     """Move the tetromino and check for collisions."""
     new_x = tetro.x + dx
     new_y = tetro.y + dy
 
-    if is_inside_bounds(tetro, new_x, new_y) and not has_board_collision(tetro, board, new_x, new_y):
+    if is_inside_bounds(tetro, new_x, new_y) and not has_board_collision(
+        tetro, board, new_x, new_y
+    ):
         tetro.x = new_x
         tetro.y = new_y
         return True
@@ -86,7 +91,7 @@ def move_tetromino(tetro, board, dx=0, dy=0):
     return False
 
 
-def check_lines(board):
+def check_lines(board: list[list[tuple[int, int, int]]]):
     """Check for and remove completed lines."""
     lines_to_remove = [
         y for y, row in enumerate(board) if all(cell != (0, 0, 0) for cell in row)
@@ -106,29 +111,57 @@ def main():
 
     game_over = False
 
+    # movement events occur less frequently than rendering FPS
+    movement_timer = 0
+    movement_interval = MS_PER_MOVE
+    pending_rotation = False
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if not game_over:
+                keys = pygame.key.get_pressed()
 
-        if not game_over:
-            keys = pygame.key.get_pressed()
+                # allow translation movement as often as possible
+                if keys[pygame.K_LEFT]:
+                    move_tetromino(current_tetro, board, -1, 0)
+                if keys[pygame.K_RIGHT]:
+                    move_tetromino(current_tetro, board, 1, 0)
+                if keys[pygame.K_DOWN]:
+                    move_tetromino(current_tetro, board, 0, 1)
 
-            if keys[pygame.K_LEFT]:
-                move_tetromino(current_tetro, board, -1, 0)
-            if keys[pygame.K_RIGHT]:
-                move_tetromino(current_tetro, board, 1, 0)
-            if keys[pygame.K_DOWN]:
-                move_tetromino(current_tetro, board, 0, 1)
-            if keys[pygame.K_RCTRL]:
-                # Rotate the tetromino when right Ctrl is pressed
-                if not current_tetro.rotate(board):
-                    pass
+                # delay handling of rotation
+                if (
+                    keys[pygame.K_RCTRL]
+                    or keys[pygame.K_LCTRL]
+                    or keys[pygame.K_r]
+                    or keys[pygame.K_SPACE]
+                ):
+                    pending_rotation = True
 
-            # Check if the piece has landed
-            if not move_tetromino(current_tetro, board, 0, 1):
-                # Place the piece on the board
+                # quit game keys trigger right away
+                if keys[pygame.K_ESCAPE] or keys[pygame.K_q]:
+                    game_over = True
+
+        ms_since_tick = clock.tick(FPS)
+        movement_timer += ms_since_tick
+
+        # allow rotation less frequently to slow down rotation speed
+        if pending_rotation and movement_timer >= (movement_interval >> 2):
+            pending_rotation = False
+
+            if not current_tetro.rotate(board):
+                # in case of a failed rotation
+                pass
+
+        # Move the tetromino down based on the timer
+        if movement_timer >= movement_interval:
+            # Move the tetromino to the next location when valid
+            valid_move = move_tetromino(current_tetro, board, 0, 1)
+            # Handle final piece locations, collisions, and generation of the next piece
+            if not valid_move:
                 for y, row in enumerate(current_tetro.shape):
                     for x, cell in enumerate(row):
                         if cell:
@@ -136,18 +169,16 @@ def main():
                                 current_tetro.x + x
                             ] = current_tetro.color
 
-                # Generate a new piece
                 current_tetro = generate_tetromino()
 
-                # Check for game over (new piece can't be placed)
+                # edge case - new tetromino causes game over. for example, when the next piece overflows the top of the game board.
                 if not move_tetromino(current_tetro, board, 0, 0):
-                    # Game over
                     game_over = True
-                    # Don't break the loop - we want to show the game over screen
-                    # But don't process any more input
-                    # We'll handle game over in the event loop below
 
-            # Check for completed lines
+            # Reset the movement timer
+            movement_timer = 0
+
+            # Check for completed lines on timer end
             check_lines(board)
 
         # Clear the screen
@@ -162,7 +193,7 @@ def main():
         if game_over:
             font = pygame.font.SysFont(None, 50)
             text = font.render("GAME OVER", True, (255, 0, 0))
-            text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
             screen.blit(text, text_rect)
 
             # Show restart instructions
@@ -170,19 +201,24 @@ def main():
             restart_text = font_small.render(
                 "Press R to restart", True, (255, 255, 255)
             )
-            restart_rect = restart_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+            restart_rect = restart_text.get_rect(
+                center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50)
+            )
             screen.blit(restart_text, restart_rect)
 
         # Update the display
         pygame.display.flip()
 
         # Control game speed
-        clock.tick(FPS)
+        ms_since_tick = clock.tick(FPS)
 
         # Handle game over input
         if game_over:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if (
+                    event.type == pygame.KEYDOWN
+                    and (event.key == pygame.K_ESCAPE or event.key == pygame.K_q)
+                ) or event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
