@@ -1,6 +1,6 @@
 import sys
 import pygame
-import sys
+
 from tetrominoes import Tetromino, generate_tetromino
 from tetrominoes import Tetromino, generate_tetromino
 
