@@ -2,7 +2,6 @@ import sys
 import pygame
 
 from tetrominoes import Tetromino, generate_tetromino
-from tetrominoes import Tetromino, generate_tetromino
 
 # Tetromino shapes and colors in a dictionary keyed by letter
 PIECES = ["S", "J", "Z", "L", "O", "I", "T"]
