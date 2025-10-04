@@ -1,5 +1,7 @@
 import sys
 import pygame
+import sys
+from tetrominoes import Tetromino, generate_tetromino
 from tetrominoes import Tetromino, generate_tetromino
 
 # Tetromino shapes and colors in a dictionary keyed by letter
